@@ -1,15 +1,19 @@
 # BeachIslands Configuration
 schematics:
-  directory: "schematics" #DO NOT CHANGE UNLESS PLUGIN DEVELOPER SAYS TO DO SO.
+  directory: "schematics"
   beach: "swev-beach.schem"
   cherry: "swev-cherry.schem"
   tiaga: "swev-tiaga.schem"
   islands: "swev-islands.schem"
 world:
   ocean-world-name: "ocean"
+  border-width: 10
 database:
   file: "database.db"
 economy:
   enabled: true
 invite:
   expiration-seconds: 300
+upgrades:
+  crops-booster-multiplier: 1.5
+  ore-booster-multiplier: 1.5

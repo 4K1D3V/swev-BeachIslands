@@ -1,12 +1,14 @@
 package gg.kite.storage;
 
-import com.google.inject.Inject;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import gg.kite.model.Invite;
 import gg.kite.model.Island;
 import gg.kite.model.IslandType;
+import gg.kite.util.MessageUtil;
+import jakarta.inject.Inject;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -18,11 +20,13 @@ import java.util.stream.Collectors;
 
 public class DatabaseService {
     private final JavaPlugin plugin;
+    private final MessageUtil messageUtil;
     private final HikariDataSource dataSource;
 
     @Inject
-    public DatabaseService(@NotNull JavaPlugin plugin) {
+    public DatabaseService(@NotNull JavaPlugin plugin, MessageUtil messageUtil) {
         this.plugin = plugin;
+        this.messageUtil = messageUtil;
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:sqlite:" + new File(plugin.getDataFolder(),
                 plugin.getConfig().getString("database.file", "database.db")).getAbsolutePath());
@@ -102,11 +106,12 @@ public class DatabaseService {
             while (rs.next()) {
                 UUID owner = UUID.fromString(rs.getString("owner"));
                 IslandType type = IslandType.valueOf(rs.getString("type"));
-                Location center = new Location(
-                        plugin.getServer().getWorld(rs.getString("world")),
-                        rs.getDouble("x"),
-                        rs.getDouble("y"),
-                        rs.getDouble("z"));
+                World world = plugin.getServer().getWorld(rs.getString("world"));
+                if (world == null) {
+                    plugin.getLogger().warning("World not found for island owned by " + owner);
+                    continue;
+                }
+                Location center = new Location(world, rs.getDouble("x"), rs.getDouble("y"), rs.getDouble("z"));
                 int borderSize = rs.getInt("border_size");
                 Map<String, Integer> upgrades = deserializeUpgrades(rs.getString("upgrades"));
                 Set<UUID> members = deserializeMembers(rs.getString("members"));
@@ -172,7 +177,10 @@ public class DatabaseService {
             for (String entry : serialized.split(";")) {
                 String[] parts = entry.split(":");
                 if (parts.length == 2) {
-                    upgrades.put(parts[0], Integer.parseInt(parts[1]));
+                    try {
+                        upgrades.put(parts[0], Integer.parseInt(parts[1]));
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
             }
         }

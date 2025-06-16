@@ -2,8 +2,7 @@ package gg.kite.service;
 
 import com.google.inject.Inject;
 import gg.kite.model.Island;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import gg.kite.util.MessageUtil;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -14,11 +13,13 @@ import org.jetbrains.annotations.NotNull;
 public class MinionProtectionService implements Listener {
     private final JavaPlugin plugin;
     private final IslandService islandService;
+    private final MessageUtil messageUtil;
 
     @Inject
-    public MinionProtectionService(JavaPlugin plugin, IslandService islandService) {
+    public MinionProtectionService(JavaPlugin plugin, IslandService islandService, MessageUtil messageUtil) {
         this.plugin = plugin;
         this.islandService = islandService;
+        this.messageUtil = messageUtil;
     }
 
     @EventHandler
@@ -28,7 +29,11 @@ public class MinionProtectionService implements Listener {
         if (island != null && !island.owner().equals(player.getUniqueId()) &&
                 !island.members().contains(player.getUniqueId())) {
             event.setCancelled(true);
-            player.sendMessage(Component.text("You cannot interact with minions on this island!", NamedTextColor.RED));
+            player.sendMessage(messageUtil.getMessage("minion-protected"));
         }
+    }
+
+    public JavaPlugin getPlugin() {
+        return plugin;
     }
 }

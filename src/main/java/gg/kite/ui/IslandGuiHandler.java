@@ -3,6 +3,7 @@ package gg.kite.ui;
 import gg.kite.model.IslandType;
 import gg.kite.model.UpgradeType;
 import gg.kite.service.IslandService;
+import gg.kite.util.MessageUtil;
 import jakarta.inject.Inject;
 import net.kyori.adventure.inventory.Book;
 import net.kyori.adventure.text.Component;
@@ -14,12 +15,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.jetbrains.annotations.NotNull;
 
-public class IslandGuiHandler implements Listener {
-    private final IslandService islandService;
-
+public record IslandGuiHandler(IslandService islandService, MessageUtil messageUtil) implements Listener {
     @Inject
-    public IslandGuiHandler(IslandService islandService) {
-        this.islandService = islandService;
+    public IslandGuiHandler {
     }
 
     public void openCreateGui(Player player) {

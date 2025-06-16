@@ -5,11 +5,12 @@ import gg.kite.model.Island;
 import gg.kite.model.IslandType;
 import gg.kite.model.UpgradeType;
 import gg.kite.storage.DatabaseService;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import gg.kite.util.MessageUtil;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Contract;
@@ -25,19 +26,28 @@ public class IslandService {
     private final DatabaseService databaseService;
     private final SchematicService schematicService;
     private final EconomyService economyService;
+    private final MessageUtil messageUtil;
     private final Map<UUID, Island> islandsByOwner;
     private final World oceanWorld;
 
     @Inject
     public IslandService(@NotNull JavaPlugin plugin, DatabaseService databaseService,
-                         SchematicService schematicService, EconomyService economyService) {
+                         SchematicService schematicService, EconomyService economyService,
+                         MessageUtil messageUtil) {
         this.plugin = plugin;
         this.databaseService = databaseService;
         this.schematicService = schematicService;
         this.economyService = economyService;
+        this.messageUtil = messageUtil;
         this.islandsByOwner = new ConcurrentHashMap<>();
-        this.oceanWorld = plugin.getServer().createWorld(new WorldCreator(
-                plugin.getConfig().getString("world.ocean-world-name", "ocean")));
+        World world = plugin.getServer().getWorld(plugin.getConfig().getString("world.ocean-world-name", "ocean"));
+        if (world == null) {
+            world = plugin.getServer().createWorld(new WorldCreator(plugin.getConfig().getString("world.ocean-world-name", "ocean")));
+        }
+        this.oceanWorld = world;
+        if (oceanWorld == null) {
+            plugin.getLogger().severe("Failed to load or create ocean world!");
+        }
         loadIslands();
     }
 
@@ -59,7 +69,11 @@ public class IslandService {
         return Optional.ofNullable(islandsByOwner.get(owner));
     }
 
-    public void createIsland(Player player, IslandType type) {
+    public boolean createIsland(Player player, IslandType type) {
+        if (oceanWorld == null) {
+            player.sendMessage(messageUtil.getMessage("error-world"));
+            return false;
+        }
         Location center = findNextIslandLocation();
         Island island = Island.createNew(player, type, center);
         islandsByOwner.put(player.getUniqueId(), island);
@@ -67,16 +81,21 @@ public class IslandService {
             generateOceanBorder(center);
             player.teleport(center);
             databaseService.saveIsland(island);
-            player.sendMessage(Component.text("Island created!", NamedTextColor.GREEN));
+            player.sendMessage(messageUtil.getMessage("island-created"));
+            return true;
         } else {
             islandsByOwner.remove(player.getUniqueId());
-            player.sendMessage(Component.text("Failed to create island!", NamedTextColor.RED));
+            player.sendMessage(messageUtil.getMessage("error-schematic", Map.of("file", type.getSchematicFile())));
+            return false;
         }
     }
 
-    public void deleteIsland(@NotNull Player player) {
+    public boolean deleteIsland(@NotNull Player player) {
         Island island = islandsByOwner.remove(player.getUniqueId());
         if (island != null) {
+            if (!schematicService.clearIsland(island)) {
+                plugin.getLogger().warning("Failed to clear island for owner: " + player.getUniqueId());
+            }
             databaseService.deleteIsland(island);
             island.members().forEach(member -> {
                 Player memberPlayer = plugin.getServer().getPlayer(member);
@@ -84,8 +103,10 @@ public class IslandService {
                     memberPlayer.teleport(memberPlayer.getWorld().getSpawnLocation());
                 }
             });
-            player.sendMessage(Component.text("Island deleted!", NamedTextColor.GREEN));
+            player.sendMessage(messageUtil.getMessage("island-deleted"));
+            return true;
         }
+        return false;
     }
 
     public boolean upgradeIsland(@NotNull Player player, UpgradeType upgradeType) {
@@ -99,22 +120,61 @@ public class IslandService {
         }
         double cost = upgradeType.getCost(currentLevel);
         if (!economyService.hasEnough(player, cost)) {
-            player.sendMessage(Component.text("You don't have enough money! Need: " + cost, NamedTextColor.RED));
+            player.sendMessage(messageUtil.getMessage("not-enough-money", Map.of("cost", String.valueOf(cost))));
             return false;
         }
         if (!economyService.withdraw(player, cost)) {
-            player.sendMessage(Component.text("Transaction failed!", NamedTextColor.RED));
+            player.sendMessage(messageUtil.getMessage("transaction-failed"));
             return false;
         }
         int newLevel = currentLevel + upgradeType.getIncrement();
         island.upgrades().put(upgradeType.toString(), newLevel);
         databaseService.saveIsland(island);
-        player.sendMessage(Component.text("Upgrade applied!", NamedTextColor.GREEN));
+        player.sendMessage(messageUtil.getMessage("upgrade-applied"));
         return true;
     }
 
-    private void generateOceanBorder(Location center) {
-        // Placeholder for generating ocean around island
+    public boolean resetIsland(@NotNull Player player, IslandType type) {
+        Island island = islandsByOwner.get(player.getUniqueId());
+        if (island == null) {
+            return false;
+        }
+        if (!schematicService.clearIsland(island)) {
+            plugin.getLogger().warning("Failed to clear island for reset: " + player.getUniqueId());
+            return false;
+        }
+        if (!schematicService.loadSchematic(type, island.center())) {
+            player.sendMessage(messageUtil.getMessage("error-schematic", Map.of("file", type.getSchematicFile())));
+            return false;
+        }
+        generateOceanBorder(island.center());
+        island.upgrades().clear();
+        island.members().clear();
+        databaseService.saveIsland(island);
+        player.teleport(island.center());
+        return true;
+    }
+
+    private void generateOceanBorder(@NotNull Location center) {
+        int borderWidth = plugin.getConfig().getInt("world.border-width", 10);
+        int radius = 75 / 2 + borderWidth; // Default border size is 75
+        World world = center.getWorld();
+        if (world == null) return;
+        int centerX = center.getBlockX();
+        int centerZ = center.getBlockZ();
+        int y = 64; // Sea level
+        for (int x = centerX - radius; x <= centerX + radius; x++) {
+            for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                double distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(z - centerZ, 2));
+                if (distance > 75 / 2.0 && distance <= radius) {
+                    Block block = world.getBlockAt(x, y, z);
+                    block.setType(Material.WATER);
+                    for (int below = y - 1; below >= y - 5; below--) {
+                        world.getBlockAt(x, below, z).setType(Material.WATER);
+                    }
+                }
+            }
+        }
     }
 
     @Contract(" -> new")

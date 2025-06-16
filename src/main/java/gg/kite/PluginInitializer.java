@@ -1,13 +1,10 @@
 package gg.kite;
 
 import gg.kite.command.IslandCommand;
-import gg.kite.service.EconomyService;
-import gg.kite.service.IslandService;
-import gg.kite.service.MinionProtectionService;
-import gg.kite.service.SchematicService;
-import gg.kite.service.TeamService;
+import gg.kite.service.*;
 import gg.kite.storage.DatabaseService;
 import gg.kite.ui.IslandGuiHandler;
+import gg.kite.util.MessageUtil;
 import jakarta.inject.Inject;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -20,13 +17,16 @@ public class PluginInitializer {
     private final IslandService islandService;
     private final MinionProtectionService minionProtectionService;
     private final TeamService teamService;
+    private final UpgradeService upgradeService;
     private final IslandGuiHandler guiHandler;
+    private final MessageUtil messageUtil;
 
     @Inject
     public PluginInitializer(JavaPlugin plugin, DatabaseService databaseService,
                              SchematicService schematicService, EconomyService economyService,
                              IslandService islandService, MinionProtectionService minionProtectionService,
-                             TeamService teamService, IslandGuiHandler guiHandler) {
+                             TeamService teamService, UpgradeService upgradeService,
+                             IslandGuiHandler guiHandler) {
         this.plugin = plugin;
         this.databaseService = databaseService;
         this.schematicService = schematicService;
@@ -34,7 +34,9 @@ public class PluginInitializer {
         this.islandService = islandService;
         this.minionProtectionService = minionProtectionService;
         this.teamService = teamService;
+        this.upgradeService = upgradeService;
         this.guiHandler = guiHandler;
+        this.messageUtil = new MessageUtil(plugin);
     }
 
     public void initialize() {
@@ -43,10 +45,11 @@ public class PluginInitializer {
         economyService.initialize();
         PluginCommand islandCommand = plugin.getCommand("island");
         if (islandCommand != null) {
-            islandCommand.setExecutor(new IslandCommand(islandService, guiHandler, teamService));
+            islandCommand.setExecutor(new IslandCommand(islandService, guiHandler, teamService, messageUtil));
         }
         plugin.getServer().getPluginManager().registerEvents(guiHandler, plugin);
         plugin.getServer().getPluginManager().registerEvents(minionProtectionService, plugin);
+        plugin.getServer().getPluginManager().registerEvents(upgradeService, plugin);
         teamService.startInviteCleanupTask();
     }
 

@@ -11,6 +11,7 @@ public class Main extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        saveResource("messages.yml", false);
         injector = Guice.createInjector(new PluginModule(this));
         injector.getInstance(PluginInitializer.class).initialize();
     }

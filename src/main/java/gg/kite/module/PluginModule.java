@@ -3,11 +3,7 @@ package gg.kite.module;
 import com.google.inject.AbstractModule;
 import gg.kite.Main;
 import gg.kite.PluginInitializer;
-import gg.kite.service.EconomyService;
-import gg.kite.service.IslandService;
-import gg.kite.service.MinionProtectionService;
-import gg.kite.service.SchematicService;
-import gg.kite.service.TeamService;
+import gg.kite.service.*;
 import gg.kite.storage.DatabaseService;
 import gg.kite.ui.IslandGuiHandler;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -28,6 +24,7 @@ public class PluginModule extends AbstractModule {
         bind(IslandService.class).asEagerSingleton();
         bind(MinionProtectionService.class).asEagerSingleton();
         bind(TeamService.class).asEagerSingleton();
+        bind(UpgradeService.class).asEagerSingleton();
         bind(IslandGuiHandler.class).asEagerSingleton();
         bind(PluginInitializer.class).asEagerSingleton();
     }

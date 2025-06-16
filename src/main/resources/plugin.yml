@@ -13,3 +13,7 @@ permissions:
   beachislands.admin:
     description: Allows access to admin island features
     default: op
+commands:
+  island:
+    description: Main command for BeachIslands
+    usage: /<command> <create|delete|upgrade|invite|accept|reject|home|kick|leave|info|admin>

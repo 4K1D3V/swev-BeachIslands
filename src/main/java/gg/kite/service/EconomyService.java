@@ -1,18 +1,21 @@
 package gg.kite.service;
 
 import com.google.inject.Inject;
+import gg.kite.util.MessageUtil;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
-
 public class EconomyService {
     private final JavaPlugin plugin;
+    private final MessageUtil messageUtil;
     private Economy economy;
 
     @Inject
-    public EconomyService(JavaPlugin plugin) {
+    public EconomyService(JavaPlugin plugin, MessageUtil messageUtil) {
         this.plugin = plugin;
+        this.messageUtil = messageUtil;
     }
 
     public void initialize() {
@@ -29,13 +32,16 @@ public class EconomyService {
         }
     }
 
-    public boolean hasEnough(org.bukkit.entity.Player player, double amount) {
+    public boolean hasEnough(Player player, double amount) {
         if (economy == null) return false;
         return economy.has(player, amount);
     }
 
-    public boolean withdraw(org.bukkit.entity.Player player, double amount) {
-        if (economy == null) return false;
+    public boolean withdraw(Player player, double amount) {
+        if (economy == null) {
+            player.sendMessage(messageUtil.getMessage("transaction-failed"));
+            return false;
+        }
         return economy.withdrawPlayer(player, amount).transactionSuccess();
     }
 }

@@ -1,0 +1,15 @@
+# BeachIslands Configuration
+schematics:
+  directory: "schematics" #DO NOT CHANGE UNLESS PLUGIN DEVELOPER SAYS TO DO SO.
+  beach: "swev-beach.schem"
+  cherry: "swev-cherry.schem"
+  tiaga: "swev-tiaga.schem"
+  islands: "swev-islands.schem"
+world:
+  ocean-world-name: "ocean"
+database:
+  file: "database.db"
+economy:
+  enabled: true
+invite:
+  expiration-seconds: 300
